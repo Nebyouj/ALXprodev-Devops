@@ -1,0 +1,17 @@
+#!/bin/bash
+
+# Extract values from data.json
+name=$(jq -r '.name' data.json)
+height=$(jq -r '.height' data.json)
+weight=$(jq -r '.weight' data.json)
+type=$(jq -r '.types[0].type.name' data.json)
+
+# Convert height to meters (height is decimeters) and weight to kg (hectograms)
+height_m=$(echo "scale=1; $height / 10" | bc)
+weight_kg=$(echo "scale=1; $weight / 10" | bc)
+
+# Capitalize first letter of type and name
+name_cap=$(echo "$name" | sed 's/.*/\u&/')
+type_cap=$(echo "$type" | sed 's/.*/\u&/')
+
+echo "$name_cap is of type $type_cap, weighs ${weight_kg}kg, and is ${height_m}m tall."
