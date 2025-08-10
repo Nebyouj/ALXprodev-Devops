@@ -5,28 +5,53 @@ CSV_FILE="pokemon_report.csv"
 
 echo "Name,Height (m),Weight (kg)" > "$CSV_FILE"
 
-total_height=0
-total_weight=0
-count=0
+# Initialize sums and count using awk script variables
+awk_script='
+BEGIN {
+    sum_height=0;
+    sum_weight=0;
+    count=0;
+    FS=",";
+    print "Name,Height (m),Weight (kg)";
+}
+{
+    # Capitalize first letter of name using awk's tolower/toupper tricks
+    name=tolower($1);
+    name=toupper(substr(name,1,1)) substr(name,2);
 
+    print name","$2","$3;
+
+    sum_height += $2;
+    sum_weight += $3;
+    count++;
+}
+END {
+    avg_h = (count > 0) ? sum_height / count : 0;
+    avg_w = (count > 0) ? sum_weight / count : 0;
+    printf "\nAverage Height: %.2f m\nAverage Weight: %.2f kg\n", avg_h, avg_w;
+}'
+
+# Temporary file to store extracted data
+tempfile=$(mktemp)
+
+# Extract data from each JSON and prepare a CSV line (name,height,weight)
 for file in "$DIR"/*.json; do
     name=$(jq -r '.name' "$file")
     height_dm=$(jq -r '.height' "$file")
     weight_hg=$(jq -r '.weight' "$file")
 
-    height=$(echo "scale=1; $height_dm / 10" | bc)
-    weight=$(echo "scale=1; $weight_hg / 10" | bc)
+    # Convert using awk to get formatted height and weight
+    read height weight <<<$(awk -v h="$height_dm" -v w="$weight_hg" 'BEGIN{printf "%.2f %.2f", h/10, w/10}')
 
-    echo "${name^},$height,$weight" >> "$CSV_FILE"  # capitalize first letter
-
-    total_height=$(echo "$total_height + $height" | bc)
-    total_weight=$(echo "$total_weight + $weight" | bc)
-    ((count++))
+    echo "$name,$height,$weight" >> "$tempfile"
 done
 
-avg_height=$(echo "scale=2; $total_height / $count" | bc)
-avg_weight=$(echo "scale=2; $total_weight / $count" | bc)
+# Use sed here to capitalize first letter of the whole file (for example)
+sed -i 's/\b\(.\)/\u\1/g' "$tempfile"
 
-echo -e "\nAverage Height: $avg_height m"
-echo "Average Weight: $avg_weight kg"
+# Use awk to print CSV header, lines, and averages
+awk -F, "$awk_script" "$tempfile" > "$CSV_FILE"
+
+rm "$tempfile"
+
 echo "CSV Report generated at: $CSV_FILE"

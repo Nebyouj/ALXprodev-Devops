@@ -1,17 +1,25 @@
 #!/bin/bash
 
-# Extract values from data.json
+# Extract raw values from data.json using jq
 name=$(jq -r '.name' data.json)
-height=$(jq -r '.height' data.json)
-weight=$(jq -r '.weight' data.json)
+height_dm=$(jq -r '.height' data.json)
+weight_hg=$(jq -r '.weight' data.json)
 type=$(jq -r '.types[0].type.name' data.json)
 
-# Convert height to meters (height is decimeters) and weight to kg (hectograms)
-height_m=$(echo "scale=1; $height / 10" | bc)
-weight_kg=$(echo "scale=1; $weight / 10" | bc)
+# Use awk for formatting height and weight (convert decimeters to meters, hectograms to kg)
+formatted_values=$(awk -v h="$height_dm" -v w="$weight_hg" 'BEGIN {
+    height = h / 10;
+    weight = w / 10;
+    printf "%.1f %.0f", height, weight
+}')
 
-# Capitalize first letter of type and name
+# Split formatted values back to variables
+formatted_height=$(echo "$formatted_values" | awk '{print $1}')
+formatted_weight=$(echo "$formatted_values" | awk '{print $2}')
+
+# Capitalize first letter of name and type using sed
 name_cap=$(echo "$name" | sed 's/.*/\u&/')
 type_cap=$(echo "$type" | sed 's/.*/\u&/')
 
-echo "$name_cap is of type $type_cap, weighs ${weight_kg}kg, and is ${height_m}m tall."
+# Print in requested format
+echo "$name_cap is of type $type_cap, weighs ${formatted_weight}kg, and is ${formatted_height}m tall."
